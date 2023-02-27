@@ -1,0 +1,44 @@
+import boto3
+
+topic_arn = ""
+
+host = 'https://search-dining-suggestions-gxpcsf5n24afqbb2rbgu5cmtce.us-east-1.es.amazonaws.com/'
+url = host + '/' + index + '/_search?'
+
+def send_to_sns(common_data, raw_data):
+
+    msg = message_template(common_data, raw_data)
+    c_data_phone = "+1" + common_data['PhoneNumber']
+    
+    print("This message will be sent to phone: ", c_data_phone)
+    try:
+        response = sns.publish(
+            TopicArn='arn:aws:sns:us-east-1:497974258925:dining_concierge_notification',
+            Message=msg)
+        print('Message sent succesfully')
+        print('Response: ', response)
+    except:
+        print("Failed in message sending")
+
+def parse_request(message):
+    request = {}
+    request['Cuisine'] = message['cuisine']['stringValue']
+    request['Date'] = message.get('Date').get('StringValue')
+    request['Location'] = message.get('location').get('stringValue')
+    request['Number_of_people'] = message.get('numPeople').get('stringValue')
+    request['Dining_Time'] = message.get('time').get('stringValue')
+    request['Phone_number'] = message.get('phone').get('stringValue')
+
+    return request
+
+def lambda_handler(event, context):
+    messageAttributes = event['Records'][0]['messageAttributes']
+    details = parse_request(messageAttributes)
+    recommendations = get_recommendations(details)
+    send_to_sns(details, recommendations)
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Hello from Lambda!')
+    }
+
